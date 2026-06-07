@@ -64,12 +64,12 @@ const Didact = { createElement, render };
 //          TESTE DA MISSÃO 1          //                                                
 // ====================================//
 
-const element = Didact.createElement(
-  "div",
-  { style: "background: salmon; padding: 20px; border-radius: 8px;" },
-  Didact.createElement("h1", null, "Missão 1: A missão foi um sucesso!"),
-  Didact.createElement("p", null, "Caso essa mensagem seja exibida, é porque você conseguiu criar o seu DOM com sucesso.")
-);
+// const element = Didact.createElement(
+//   "div",
+//   { style: "background: salmon; padding: 20px; border-radius: 8px;" },
+//   Didact.createElement("h1", null, "Missão 1: A missão foi um sucesso!"),
+//   Didact.createElement("p", null, "Caso essa mensagem seja exibida, é porque você conseguiu criar o seu DOM com sucesso.")
+// );
 
-const container = document.getElementById("root");
-Didact.render(element, container);
+// const container = document.getElementById("root");
+// Didact.render(element, container);
