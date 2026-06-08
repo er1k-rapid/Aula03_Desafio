@@ -1,8 +1,7 @@
-// ================================================//
-//           MISSÃO 1: CRIAÇÃO DE ELEMENTOS        //
-// ================================================//
+// ============================================================================//
+//                     MISSÃO 1: CRIAÇÃO DE ELEMENTOS                          //
+// ============================================================================//
 
-// Transforma JSX em um objeto simples representando um elemento de UI.
 function createElement(type, props, ...children) {
   return {
     type,
@@ -17,7 +16,6 @@ function createElement(type, props, ...children) {
   }
 }
 
-// Cria um nó virtual para conteúdo de texto bruto (strings e números).
 function createTextElement(text) {
   return {
     type: "TEXT_ELEMENT",
@@ -28,37 +26,30 @@ function createTextElement(text) {
   }
 }
 
-// =========================================================================//
-//           MISSÕES 2 E 3: MODO CONCORRENTE, FIBERS, RENDER E COMMIT       //
-// =========================================================================//
+// ============================================================================//
+//            MISSÕES 2 E 3: MODO CONCORRENTE, FIBERS, RENDER E COMMIT         //
+// ============================================================================//
 
-// Variáveis globais de controle
-let nextUnitOfWork = null;
-let wipRoot = null;      // Rascunho da árvore (Work in Progress)
-let currentRoot = null;  // A árvore que está atualmente visível na tela
-let deletions = null;    // Lista de nós que precisam ser apagados do DOM
+// Variáveis globais para o loop de trabalho e a árvore de fibras
+let nextUnitOfWork = null; // O próximo trabalho a ser feito
+let wipRoot = null;       // A "Work In Progress" root, a árvore de fibras que está sendo construida
+let currentRoot = null;   // A raiz da árvore de fibras que está sendo renderizada
+let deletions = null;     // Lista de nós que precisam ser removidos
 
-// Função temporária que será implementada apenas na Missão 4
-function updateFunctionComponent(fiber) {}
-
-// === 3.1 A Nova Função Render e Fase de Commit ===
-
-// Aqui o render não toca no DOM diretamente. 
-// Ele apenas cria a estrutura de Fibers e marca o que precisa ser atualizado, criado ou deletado. 
-// O DOM só é atualizado na fase de Commit, onde são aplicados todas as mudanças de uma só vez para evitar inconsistências visuais.
+// O método de renderização: cria a raiz da árvore de fibras e inicia o loop de trabalho
 function render(element, container) {
   wipRoot = {
     dom: container,
     props: {
       children: [element],
     },
-    alternate: currentRoot, // Elo com a árvore antiga para que seja possível fazer a comparação
+    alternate: currentRoot, 
   };
   deletions = [];
   nextUnitOfWork = wipRoot;
 }
 
-// Aplica todas as mudanças calculadas no DOM de uma só vez (Fase de Commit).
+// O commit: aplica as mudanças da árvore de fibras no DOM real
 function commitRoot() {
   deletions.forEach(commitWork);
   commitWork(wipRoot.child);
@@ -66,11 +57,10 @@ function commitRoot() {
   wipRoot = null;
 }
 
-// Executa as alterações no DOM baseadas na etiqueta (effectTag) do fiber.
+// O commitWork: percorre a árvore de fibras e aplica as mudanças no DOM
 function commitWork(fiber) {
   if (!fiber) return;
 
-  // Encontra o pai mais próximo que seja um nó DOM real
   let domParentFiber = fiber.parent;
   while (!domParentFiber.dom) {
     domParentFiber = domParentFiber.parent;
@@ -89,7 +79,7 @@ function commitWork(fiber) {
   commitWork(fiber.sibling);
 }
 
-// Remove o nó do DOM.
+// O commitDeletion: remove um nó do DOM, ou continua descendo na árvore se o nó não tiver um DOM associado
 function commitDeletion(fiber, domParent) {
   if (fiber.dom) {
     domParent.removeChild(fiber.dom);
@@ -98,9 +88,7 @@ function commitDeletion(fiber, domParent) {
   }
 }
 
-
-// === 2.1 e 2.3 O Loop de Trabalho (Work Loop) ===
-
+// O loop de trabalho: processa unidades de trabalho enquanto houver tempo disponível
 function workLoop(deadline) {
   let shouldYield = false;
   while (nextUnitOfWork && !shouldYield) {
@@ -116,6 +104,7 @@ function workLoop(deadline) {
 }
 requestIdleCallback(workLoop);
 
+// O performUnitOfWork: processa uma unidade de trabalho, criando a fibra correspondente e reconciliando os filhos
 function performUnitOfWork(fiber) {
   const isFunctionComponent = fiber.type instanceof Function;
   if (isFunctionComponent) {
@@ -138,6 +127,7 @@ function performUnitOfWork(fiber) {
   return undefined;
 }
 
+// O updateHostComponent: cria o DOM para a fibra se ainda não existir, e reconciliando os filhos
 function updateHostComponent(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
@@ -145,9 +135,7 @@ function updateHostComponent(fiber) {
   reconcileChildren(fiber, fiber.props?.children || []);
 }
 
-
-// === 2.2 e 3.2 Criação e Atualização de Nós do DOM ===
-
+// O createDom: cria um nó DOM real a partir de uma fibra, e aplica as propriedades iniciais
 function createDom(fiber) {
   const dom =
     fiber.type === "TEXT_ELEMENT"
@@ -158,15 +146,14 @@ function createDom(fiber) {
   return dom;
 }
 
-// Helpers para filtrar as propriedades
-const isEvent = key => key.startsWith("on");
-const isProperty = key => key !== "children" && !isEvent(key);
-const isNew = (prev, next) => key => prev[key] !== next[key];
-const isGone = (prev, next) => key => !(key in next);
 
-// Atualiza o nó DOM reutilizado, limpando lixo antigo e aplicando dados novos.
+const isEvent = key => key.startsWith("on"); // Eventos começam com "on", ex: onClick, onChange
+const isProperty = key => key !== "children" && !isEvent(key); // Propriedades são tudo que não é "children" e não é um evento
+const isNew = (prev, next) => key => prev[key] !== next[key]; // Verifica se a propriedade mudou entre o antigo e o novo
+const isGone = (prev, next) => key => !(key in next); // Verifica se a propriedade foi removida no novo
+
+// O updateDom: compara as propriedades antigas e novas, e aplica as mudanças no DOM real
 function updateDom(dom, prevProps, nextProps) {
-  // Remove event listeners antigos
   Object.keys(prevProps)
     .filter(isEvent)
     .filter(key => !(key in nextProps) || isNew(prevProps, nextProps)(key))
@@ -175,7 +162,6 @@ function updateDom(dom, prevProps, nextProps) {
       dom.removeEventListener(eventType, prevProps[name]);
     });
 
-  // Remove propriedades antigas
   Object.keys(prevProps)
     .filter(isProperty)
     .filter(isGone(prevProps, nextProps))
@@ -183,7 +169,6 @@ function updateDom(dom, prevProps, nextProps) {
       dom[name] = "";
     });
 
-  // Adiciona/Atualiza propriedades novas
   Object.keys(nextProps)
     .filter(isProperty)
     .filter(isNew(prevProps, nextProps))
@@ -191,7 +176,6 @@ function updateDom(dom, prevProps, nextProps) {
       dom[name] = nextProps[name];
     });
 
-  // Adiciona event listeners novos
   Object.keys(nextProps)
     .filter(isEvent)
     .filter(isNew(prevProps, nextProps))
@@ -201,10 +185,7 @@ function updateDom(dom, prevProps, nextProps) {
     });
 }
 
-
-// === 3.3 Reconciliação (Diffing Algorithm) ===
-
-// Compara os elementos novos com a árvore antiga para decidir o que atualizar, criar ou deletar.
+// O reconcileChildren: compara os filhos antigos e novos, e cria as fibras correspondentes com as tags de efeito apropriadas
 function reconcileChildren(wipFiber, elements) {
   let index = 0;
   let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
@@ -216,7 +197,6 @@ function reconcileChildren(wipFiber, elements) {
 
     const sameType = oldFiber && element && element.type == oldFiber.type;
 
-    // CASO 1: Mesma tag. É reutilizado o DOM e apenas feito a atualização das props.
     if (sameType) {
       newFiber = {
         type: oldFiber.type,
@@ -228,7 +208,6 @@ function reconcileChildren(wipFiber, elements) {
       };
     }
     
-    // CASO 2: Nova tag. É preciso fazer a criação do zero.
     if (element && !sameType) {
       newFiber = {
         type: element.type,
@@ -240,7 +219,6 @@ function reconcileChildren(wipFiber, elements) {
       };
     }
     
-    // CASO 3: Tag sumiu ou mudou. É preciso fazer a marcação para exclusão.
     if (oldFiber && !sameType) {
       oldFiber.effectTag = "DELETION";
       deletions.push(oldFiber);
@@ -261,4 +239,88 @@ function reconcileChildren(wipFiber, elements) {
   }
 }
 
-const Didact = { createElement, render };
+// ============================================================================//
+//              MISSÃO 4: FUNCTION COMPONENTS E USESTATE                       //
+// ============================================================================//
+
+// Globais para rastrear onde os hooks estão sendo chamados
+let wipFiber = null;
+let hookIndex = null;
+
+// === 4.1 Atualização de Componentes de Função ===
+function updateFunctionComponent(fiber) {
+  wipFiber = fiber;
+  hookIndex = 0;
+  wipFiber.hooks = [];
+  
+  // Executa a função do componente. Qualquer useState chamado aqui dentro 
+  // vai ler as variáveis globais que foram configuradas acima.
+  const children = [fiber.type(fiber.props)];
+  reconcileChildren(fiber, children);
+}
+
+// === 4.2 useState ===
+function useState(initial) {
+  // 1. Busca o estado antigo: tenta encontrar o hook na árvore anterior
+  const oldHook =
+    wipFiber.alternate &&
+    wipFiber.alternate.hooks &&
+    wipFiber.alternate.hooks[hookIndex];
+
+  // 2. Inicializa o hook atual: usa o estado antigo se existir, senão usa o inicial
+  const hook = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [],
+  };
+
+  // 3. Processa a fila (Batching): aplica todas as ações pendentes no estado
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach(action => {
+    // A ação pode ser um valor direto ou uma função (ex: prev => prev + 1)
+    hook.state = typeof action === "function" ? action(hook.state) : action;
+  });
+
+  // 4. O despachante setState: joga a ação na fila e acorda o Work Loop (loop de trabalho)
+  const setState = action => {
+    hook.queue.push(action);
+    
+    // Configura uma nova árvore rascunho partindo da raiz atual
+    wipRoot = {
+      dom: currentRoot.dom,
+      props: currentRoot.props,
+      alternate: currentRoot,
+    };
+    nextUnitOfWork = wipRoot;
+    deletions = [];
+  };
+
+  // 5. Avança o cursor para o próximo hook (se houver outro useState no componente)
+  wipFiber.hooks.push(hook);
+  hookIndex++;
+  
+  return [hook.state, setState];
+}
+
+// Agora é exportado também o useState
+const Didact = { createElement, render, useState };
+
+// ============================================================================//
+//                            TESTE DA MISSÃO 4                                //
+// ============================================================================//
+const container = document.getElementById("root");
+
+// O componente de função: recebe props e retorna um elemento. Pode usar hooks como useState para ter estado interno.
+// Aqui é um componente já funcional, que pode ser renderizado usando o Didact.render. 
+// Ele recebe uma prop "name" e exibe uma saudação personalizada.
+function Greeting(props) {
+  return Didact.createElement(
+    "h1", 
+    { style: "color: green; font-family: sans-serif;" }, 
+    "Missão 4: Olá, ", 
+    props.name, 
+    "!"
+  );
+}
+
+const App = Didact.createElement(Greeting, { name: "Componentes de Função" });
+Didact.render(App, container);
