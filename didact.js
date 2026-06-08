@@ -262,26 +262,3 @@ function reconcileChildren(wipFiber, elements) {
 }
 
 const Didact = { createElement, render };
-
-// =========================================================================//
-//                              TESTE DA MISSÃO 3                           //
-// =========================================================================//
-const container = document.getElementById("root");
-
-function updateApp(title, description) {
-  const element = Didact.createElement(
-    "div",
-    { style: "background: lightblue; padding: 20px; border-radius: 8px; font-family: sans-serif;" },
-    Didact.createElement("h1", null, title),
-    Didact.createElement("p", null, description)
-  );
-  Didact.render(element, container);
-}
-
-// Render Inicial
-updateApp("Missão 3: A árvore de Fibers funciona! ", "Aguarde 2 segundos para a atualização...");
-
-// Teste de Reconciliação
-setTimeout(() => {
-  updateApp("Missão 3: Reconciliação funciona! ", "O DOM foi atualizado sem recriar a div pai.");
-}, 2000);
