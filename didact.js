@@ -60,16 +60,130 @@ function render(element, container) {
 
 const Didact = { createElement, render };
 
-// ====================================//
-//          TESTE DA MISSÃO 1          //                                                
-// ====================================//
+// =======================================================//
+// MISSÃO 2: MODO CONCORRENTE E A ÁRVORE DE FIBERS        //
+// =======================================================//
 
-// const element = Didact.createElement(
-//   "div",
-//   { style: "background: salmon; padding: 20px; border-radius: 8px;" },
-//   Didact.createElement("h1", null, "Missão 1: A missão foi um sucesso!"),
-//   Didact.createElement("p", null, "Caso essa mensagem seja exibida, é porque você conseguiu criar o seu DOM com sucesso.")
-// );
+// Variáveis globais para o controle do Work Loop
+let nextUnitOfWork = null;
+let wipRoot = null; // Work in Progress Root (Raiz do trabalho em andamento)
 
-// const container = document.getElementById("root");
-// Didact.render(element, container);
+// Variáveis/Funções temporárias (Stubs) para evitar possíveis erros nas Missões futuras
+function commitRoot() {}
+function updateFunctionComponent(fiber) {}
+function reconcileChildren(fiber, elements) {}
+function updateDom(dom, prevProps, nextProps) {}
+
+
+// === 2.1 O Loop de Trabalho (Work Loop) ===
+// requestIdleCallback agenda o loop para rodar quando a thread principal estiver ociosa.
+// O parâmetro 'deadline' diz quanto tempo tem antes de devolver o controle ao navegador.
+function workLoop(deadline) {
+  let shouldYield = false;
+  
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    shouldYield = deadline.timeRemaining() < 1;
+  }
+
+  // Quando não houver mais trabalho e já haver uma árvore pronta, serão aplicadas as mudanças no DOM
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
+  }
+
+  requestIdleCallback(workLoop);
+}
+// É iniciado o motor do loop de trabalho
+requestIdleCallback(workLoop);
+
+
+// === 2.2 Criação de Nós do DOM ===
+// Este helper cria o nó real do DOM para um dado fiber.
+// Ele chama updateDom — uma função que será implementado futuramente na Missão 3.
+function createDom(fiber) {
+  const dom =
+    fiber.type === "TEXT_ELEMENT"
+      ? document.createTextNode("")
+      : document.createElement(fiber.type);
+
+  updateDom(dom, {}, fiber.props);
+  return dom;
+}
+
+
+// === 2.3 performUnitOfWork (A Lógica de Navegação da Árvore) ===
+// Este é o núcleo do agendador. Recebe um fiber, processa, e retorna o próximo.
+function performUnitOfWork(fiber) {
+  const isFunctionComponent = fiber.type instanceof Function;
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
+  }
+
+  // 1. Se o fiber tem um filho (child), ele é a próxima unidade de trabalho.
+  if (fiber.child) {
+    return fiber.child;
+  }
+
+  // 2. Se não tem filho, procuramos por um irmão (sibling).
+  // Se não houver irmão, subimos para o pai (parent) e procuramos o irmão do pai (uncle).
+  let nextFiber = fiber;
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling;
+    }
+    nextFiber = nextFiber.parent;
+  }
+  
+  // 3. Se chegar até aqui, é feito uma varredutra de toda a árvore de volta até o topo e o trabalho é encerrado.
+  return undefined;
+}
+
+function updateHostComponent(fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber);
+  }
+  reconcileChildren(fiber, fiber.props?.children || []);
+}
+
+
+// ========================================================================//
+//  TESTE DA MISSÃO 2: Testando o Algoritmo de Travessia (Traversal)       //
+// ========================================================================//
+/* Será feito a simulação dessa árvore abaixo (sem precisar renderizar na tela ainda):
+      A
+     / \
+    B   D
+   /
+  C
+*/
+
+// 1. Criando fibers falsos para o teste
+const fiberC = { type: "C", props: {} };
+const fiberB = { type: "B", props: {}, child: fiberC };
+const fiberD = { type: "D", props: {} };
+const fiberA = { type: "A", props: {}, child: fiberB };
+
+// 2. Conectando pais e irmãos
+fiberC.parent = fiberB;
+fiberB.parent = fiberA;
+fiberD.parent = fiberA;
+fiberB.sibling = fiberD;
+
+// 3. Substituindo a função temporariamente para não mexer no DOM real
+const originalUpdateHost = updateHostComponent;
+updateHostComponent = (fiber) => { 
+  console.log("Visitando nó:", fiber.type); 
+};
+
+// 4. Rodando a lógica do Work Loop manualmente para verificar a ordem
+console.log("--- Iniciando Teste da Árvore de Fibers ---");
+let nextUnit = fiberA;
+while (nextUnit) {
+  nextUnit = performUnitOfWork(nextUnit);
+}
+console.log("--- Fim da Travessia ---");
+
+// 5. Restaurando a função original para as próximas missões
+updateHostComponent = originalUpdateHost;
