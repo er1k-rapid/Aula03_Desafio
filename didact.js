@@ -303,24 +303,3 @@ function useState(initial) {
 
 // Agora é exportado também o useState
 const Didact = { createElement, render, useState };
-
-// ============================================================================//
-//                            TESTE DA MISSÃO 4                                //
-// ============================================================================//
-const container = document.getElementById("root");
-
-// O componente de função: recebe props e retorna um elemento. Pode usar hooks como useState para ter estado interno.
-// Aqui é um componente já funcional, que pode ser renderizado usando o Didact.render. 
-// Ele recebe uma prop "name" e exibe uma saudação personalizada.
-function Greeting(props) {
-  return Didact.createElement(
-    "h1", 
-    { style: "color: green; font-family: sans-serif;" }, 
-    "Missão 4: Olá, ", 
-    props.name, 
-    "!"
-  );
-}
-
-const App = Didact.createElement(Greeting, { name: "Componentes de Função" });
-Didact.render(App, container);
